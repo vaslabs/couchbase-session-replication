@@ -3,7 +3,9 @@ package org.vaslabs.sr;
 import com.couchbase.client.java.AsyncBucket;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.SerializableDocument;
-import org.apache.catalina.*;
+import org.apache.catalina.Lifecycle;
+import org.apache.catalina.Manager;
+import org.apache.catalina.Session;
 import org.apache.catalina.session.ManagerBase;
 
 import java.io.IOException;
