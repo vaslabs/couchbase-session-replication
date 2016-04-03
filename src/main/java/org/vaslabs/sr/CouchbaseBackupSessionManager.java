@@ -68,6 +68,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         SerializableDocument sd = sessionBucket.get(s, SerializableDocument.class).toBlocking().last();
         if (sd == null)
             return null;
+        sessionBucket.upsert(sd);
         return (Session)sd.content();
     }
 
