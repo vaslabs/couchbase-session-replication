@@ -6,6 +6,7 @@ import com.couchbase.client.java.document.SerializableDocument;
 import org.apache.catalina.*;
 import org.apache.catalina.session.ManagerBase;
 import org.apache.catalina.session.StandardSession;
+import rx.Subscriber;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -27,10 +28,24 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     }
 
     private void _storeSession(Session session) {
-        String sessionId = session.getId();
+        final String sessionId = session.getId();
         SerializableDocument serializableDocument =
                 SerializableDocument.create(sessionId, (Serializable)session, session.getMaxInactiveInterval()*60L);
-        sessionBucket.upsert(serializableDocument);
+        sessionBucket.upsert(serializableDocument)
+            .subscribe(new Subscriber<SerializableDocument>() {
+                public void onCompleted() {
+                    System.out.println("Stored: " + sessionId);
+                }
+
+                public void onError(Throwable throwable) {
+                    System.out.println("Error storing: " + sessionId);
+                    throwable.printStackTrace();
+                }
+
+                public void onNext(SerializableDocument serializableDocument) {
+
+                }
+            });
     }
 
     public void changeSessionId(Session session) {
