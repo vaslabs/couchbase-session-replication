@@ -5,6 +5,7 @@ import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.SerializableDocument;
 import org.apache.catalina.*;
 import org.apache.catalina.session.ManagerBase;
+import org.apache.catalina.session.StandardManager;
 import org.apache.catalina.session.StandardSession;
 import rx.Subscriber;
 
@@ -40,24 +41,19 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     }
 
     private void _storeSession(Session session) {
-        final String sessionId = session.getId();
+        System.out.println("Store session");
+        final String sessionId = session.getIdInternal();
+        if (sessionId == null) {
+            return;
+        }
+        System.out.println("Store session with id: " + sessionId);
         SerializableDocument serializableDocument =
                 SerializableDocument.create(sessionId, (Serializable)session, session.getMaxInactiveInterval()*60L);
-        sessionBucket.upsert(serializableDocument)
-            .subscribe(new Subscriber<SerializableDocument>() {
-                public void onCompleted() {
-                    System.out.println("Stored: " + sessionId);
-                }
+        System.out.println("Session serialized to: " + serializableDocument);
 
-                public void onError(Throwable throwable) {
-                    System.out.println("Error storing: " + sessionId);
-                    throwable.printStackTrace();
-                }
+        sessionBucket.upsert(serializableDocument).toBlocking().single();
+        System.out.println("Session stored: " + serializableDocument.id());
 
-                public void onNext(SerializableDocument serializableDocument) {
-
-                }
-            });
     }
 
     public void changeSessionId(Session session) {
@@ -102,20 +98,24 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     }
 
     public void remove(Session session, boolean b) {
+        String id;
+        if ((id=session.getIdInternal()) != null)
+            sessionBucket.remove(id);
         super.remove(session, b);
-        sessionBucket.remove(session.getId());
     }
 
     public void unload() throws IOException {
         sessionBucket.close();
-    }
+   }
 
     @Override
     public void startInternal() throws LifecycleException {
+        System.out.println("startInternal");
         super.startInternal();
         sessionBucket = CouchbaseCluster.create(couchbaseHost)
                 .openBucket(couchbaseBucket, couchbasePassword).async();
         setState(LifecycleState.STARTING);
+        System.out.println("Starting (internal finished)");
     }
 
     /**
@@ -123,10 +123,8 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
      */
     @Override
     public void stopInternal() throws LifecycleException {
-        setState(LifecycleState.STOPPING);
-
-        sessionBucket.close().toBlocking().single();
-
         super.stopInternal();
+        setState(LifecycleState.STOPPING);
     }
+
 }
