@@ -3,10 +3,9 @@ package org.vaslabs.sr;
 import com.couchbase.client.java.AsyncBucket;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.SerializableDocument;
-import org.apache.catalina.Lifecycle;
-import org.apache.catalina.Manager;
-import org.apache.catalina.Session;
+import org.apache.catalina.*;
 import org.apache.catalina.session.ManagerBase;
+import org.apache.catalina.session.StandardSession;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -16,15 +15,10 @@ import java.io.Serializable;
  */
 public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecycle, Manager {
 
-    private final AsyncBucket sessionBucket;
-    private static final String COUCHBASE_HOST = "";
-    private static final String COUCHBASE_BUCKET = "";
-    private static final String COUCHBASE_PASSWORD = "";
-
-    public CouchbaseBackupSessionManager() {
-        sessionBucket = CouchbaseCluster.create(COUCHBASE_HOST)
-                .openBucket(COUCHBASE_BUCKET, COUCHBASE_PASSWORD).async();
-    }
+    private AsyncBucket sessionBucket;
+    private static final String COUCHBASE_HOST = "192.168.101.101";
+    private static final String COUCHBASE_BUCKET = "website-sessions";
+    private static final String COUCHBASE_PASSWORD = "NotThePassword";
 
     @Override
     public void add(Session session) {
@@ -89,4 +83,24 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         sessionBucket.close();
     }
 
+    @Override
+    public void startInternal() throws LifecycleException {
+        super.startInternal();
+        sessionBucket = CouchbaseCluster.create(COUCHBASE_HOST)
+                .openBucket(COUCHBASE_BUCKET, COUCHBASE_PASSWORD).async();
+        setState(LifecycleState.STARTING);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void stopInternal() throws LifecycleException {
+        setState(LifecycleState.STOPPING);
+
+        sessionBucket = CouchbaseCluster.create(COUCHBASE_HOST)
+                .openBucket(COUCHBASE_BUCKET, COUCHBASE_PASSWORD).async();
+
+        super.stopInternal();
+    }
 }
