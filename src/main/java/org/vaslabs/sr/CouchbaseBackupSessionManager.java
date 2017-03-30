@@ -17,9 +17,21 @@ import java.io.Serializable;
 public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecycle, Manager {
 
     private AsyncBucket sessionBucket;
-    private static final String COUCHBASE_HOST = "192.168.101.101";
-    private static final String COUCHBASE_BUCKET = "website-sessions";
-    private static final String COUCHBASE_PASSWORD = "NotThePassword";
+    private String couchbaseHost;
+    private String couchbaseBucket;
+    private String couchbasePassword;
+
+    public void setCouchbaseHost(String host) {
+        couchbaseHost = host;
+    }
+
+    public void setCouchbaseBucket(String bucket) {
+        couchbaseBucket = bucket;
+    }
+
+    public void setCouchbasePassword(String password) {
+        couchbasePassword = password;
+    }
 
     @Override
     public void add(Session session) {
@@ -101,8 +113,8 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     @Override
     public void startInternal() throws LifecycleException {
         super.startInternal();
-        sessionBucket = CouchbaseCluster.create(COUCHBASE_HOST)
-                .openBucket(COUCHBASE_BUCKET, COUCHBASE_PASSWORD).async();
+        sessionBucket = CouchbaseCluster.create(couchbaseHost)
+                .openBucket(couchbaseBucket, couchbasePassword).async();
         setState(LifecycleState.STARTING);
     }
 
@@ -113,8 +125,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     public void stopInternal() throws LifecycleException {
         setState(LifecycleState.STOPPING);
 
-        sessionBucket = CouchbaseCluster.create(COUCHBASE_HOST)
-                .openBucket(COUCHBASE_BUCKET, COUCHBASE_PASSWORD).async();
+        sessionBucket.close().toBlocking().single();
 
         super.stopInternal();
     }
