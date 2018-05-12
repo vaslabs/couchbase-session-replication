@@ -11,6 +11,7 @@ import rx.Subscriber;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by vnicolaou on 03/04/16.
@@ -124,6 +125,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     @Override
     public void stopInternal() throws LifecycleException {
         super.stopInternal();
+        sessionBucket.environment().shutdown(10, TimeUnit.SECONDS);
         setState(LifecycleState.STOPPING);
     }
 
