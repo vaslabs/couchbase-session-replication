@@ -114,12 +114,8 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         standardSession.setId(s, false);
 
         standardSession.setValid(true);
-        try {
-            System.out.println("Session " + s + " attributes " + sessionDataField.get(standardSession));
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
         attributes.forEach(standardSession::setAttribute);
+
         return standardSession;
     }
 
