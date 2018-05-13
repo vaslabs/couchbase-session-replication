@@ -12,7 +12,10 @@ import rx.Subscriber;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.time.Clock;
+import java.time.ZonedDateTime;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,19 +46,35 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         _storeSession(session);
     }
 
+    private final static Field sessionDataField =  getAttributesField();
+
+
+    private static Field getAttributesField() {
+        Field attr = null;
+        try {
+            attr = StandardSession.class.getDeclaredField("attributes");
+            attr.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            throw new Error("Can't proceed, unrecognised session api. Upgraded tomcat?");
+        }
+        return attr;
+    }
+
     private void _storeSession(Session session) {
         System.out.println("Store session");
-        final String sessionId = session.getIdInternal();
-        if (sessionId == null) {
-            return;
-        }
-        System.out.println("Store session with id: " + sessionId);
-        SerializableDocument serializableDocument =
-                SerializableDocument.create(sessionId, (Serializable)session, session.getMaxInactiveInterval()*60L);
-        System.out.println("Session serialized to: " + serializableDocument);
+        try {
+            Map<String, Object> attributes = (Map<String, Object>) sessionDataField.get(session);
+            attributes.put("timestamp", ZonedDateTime.now(Clock.systemUTC()));
+            final String sessionId = session.getIdInternal();
+            if (sessionId == null)
+                return;
+            SerializableDocument serializableDocument =
+                    SerializableDocument.create(sessionId, (Serializable)attributes, session.getMaxInactiveInterval()*60L);
+            sessionBucket.upsert(serializableDocument).toBlocking().single();
 
-        sessionBucket.upsert(serializableDocument).toBlocking().single();
-        System.out.println("Session stored: " + serializableDocument.id());
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -83,16 +102,6 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
             return session;
         session = _fetchSession(s);
         System.out.println("Found session: " + session);
-        if (session != null) {
-            try {
-                Field notes = session.getClass().getDeclaredField("notes");
-                notes.setAccessible(true);
-                notes.set(session, new Hashtable<String, Object>());
-                System.out.println("Notes of this session are: " + notes.get(session));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
         return session;
     }
 
@@ -100,15 +109,25 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         SerializableDocument sd = sessionBucket.get(s, SerializableDocument.class).toBlocking().last();
         if (sd == null)
             return null;
-        sessionBucket.upsert(sd);
-        return (Session)sd.content();
+        Map<String, Object> attributes = (Map<String, Object>) sd.content();
+        final StandardSession standardSession = new StandardSession(this);
+        standardSession.setId(s, false);
+
+        standardSession.setValid(true);
+        try {
+            System.out.println("Session " + s + " attributes " + sessionDataField.get(standardSession));
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        attributes.forEach(standardSession::setAttribute);
+        return standardSession;
     }
 
     public Session[] findSessions() {
         return super.findSessions();
     }
 
-    public void load() throws ClassNotFoundException, IOException {
+    public void load() {
 
     }
 
@@ -119,7 +138,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         super.remove(session, b);
     }
 
-    public void unload() throws IOException {
+    public void unload() {
         sessionBucket.close();
    }
 
