@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+
+  couchbase_cluster_a:
+      build: sandbox/couchbase/
+      command: ["couchbase-server"]
+      hostname: couchbase_a
+      ports:
+        - 8091-8094:8091-8094
+        - 11210:11210
+
+#  tomcat_a:
+#    build: sandbox/tomcat/
+#    depends_on:
+#      - couchbase_cluster_a
+#    ports:
+#      - 8080:8080

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Context>
+
+    <WatchedResource>WEB-INF/web.xml</WatchedResource>
+
+    <Manager className='org.vaslabs.sr.CouchbaseBackupSessionManager'
+             couchbaseHost='couchbase_a'
+             couchbaseBucket="sessions"
+             requestUriIgnorePattern='.*\.(ico|png|gif|jpg|css|js)$' />
+
+</Context>
