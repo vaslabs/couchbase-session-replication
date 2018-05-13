@@ -5,14 +5,16 @@ services:
   couchbase_cluster_a:
       build: sandbox/couchbase/
       command: ["couchbase-server"]
-      hostname: couchbase_a
+      container_name: couchbase_a
       ports:
         - 8091-8094:8091-8094
         - 11210:11210
 
-#  tomcat_a:
-#    build: sandbox/tomcat/
-#    depends_on:
-#      - couchbase_cluster_a
-#    ports:
-#      - 8080:8080
+  tomcat_a:
+    build: sandbox/tomcat/
+    depends_on:
+      - couchbase_cluster_a
+    ports:
+      - 8080:8080
+    volumes:
+      - ./target:/tomcat-lib:z

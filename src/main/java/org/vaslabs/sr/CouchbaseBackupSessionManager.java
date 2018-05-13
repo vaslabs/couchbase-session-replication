@@ -111,7 +111,8 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
 
     @Override
     public void startInternal() throws LifecycleException {
-        System.out.println("startInternal");
+        System.out.println(String.format("startInternal with %s %s:%s",
+                couchbaseHost, couchbaseBucket, couchbasePassword));
         super.startInternal();
         sessionBucket = CouchbaseCluster.create(couchbaseHost)
                 .openBucket(couchbaseBucket, couchbasePassword).async();
