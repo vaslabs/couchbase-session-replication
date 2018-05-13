@@ -11,6 +11,8 @@ import rx.Subscriber;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.Hashtable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -75,10 +77,22 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     }
 
     public Session findSession(String s) throws IOException {
+        System.out.println("Finding session: " + s);
         Session session = super.findSession(s);
         if (session != null)
             return session;
         session = _fetchSession(s);
+        System.out.println("Found session: " + session);
+        if (session != null) {
+            try {
+                Field notes = session.getClass().getDeclaredField("notes");
+                notes.setAccessible(true);
+                notes.set(session, new Hashtable<String, Object>());
+                System.out.println("Notes of this session are: " + notes.get(session));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         return session;
     }
 
