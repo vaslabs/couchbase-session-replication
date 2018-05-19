@@ -1,10 +1,7 @@
 package org.vaslabs.sr;
 
-import com.couchbase.client.java.document.ByteArrayDocument;
-import org.apache.catalina.Container;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
-import org.apache.catalina.Session;
 import org.apache.catalina.session.StandardSession;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -17,8 +14,6 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -36,7 +31,7 @@ public class CouchbaseBackupSessionManagerSpec extends CouchbaseServerBase {
         sessionManager.setCouchbasePassword(password);
         sessionManager.setSessionIdleTime(15);
         sessionManager.withSessionStorageStrategy(Storage.kryoBasedStrategy(
-                bucket, Duration.ofSeconds(15), HashMap.class
+                bucket, Duration.ofMinutes(15), HashMap.class
         ));
     }
 

@@ -27,7 +27,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     private String couchbaseHost;
     private String couchbaseBucket;
     private String couchbasePassword;
-    private Duration sessionIdleTime = Duration.ofSeconds(15);
+    private Duration sessionIdleTime = Duration.ofMinutes(15);
     private SessionStorageStrategy<ByteArrayDocument, HashMap<String, Object>> storageStrategy;
 
 
@@ -157,7 +157,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         sessionBucket = CouchbaseCluster.create(couchbaseHost)
                 .openBucket(couchbaseBucket, couchbasePassword).async();
         setState(LifecycleState.STARTING);
-        storageStrategy = Storage.kryoBasedStrategy(sessionBucket, sessionIdleTime, Map.class);
+        storageStrategy = Storage.kryoBasedStrategy(sessionBucket, sessionIdleTime, HashMap.class);
         System.out.println("Starting (internal finished)");
     }
 
