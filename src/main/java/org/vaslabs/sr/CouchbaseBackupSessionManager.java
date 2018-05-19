@@ -2,19 +2,19 @@ package org.vaslabs.sr;
 
 import com.couchbase.client.java.AsyncBucket;
 import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.document.SerializableDocument;
+import com.couchbase.client.java.document.ByteArrayDocument;
 import org.apache.catalina.*;
 import org.apache.catalina.session.ManagerBase;
-import org.apache.catalina.session.StandardManager;
 import org.apache.catalina.session.StandardSession;
-import rx.Subscriber;
+import org.vaslabs.sr.storage.SessionStorageStrategy;
+import org.vaslabs.sr.storage.Storage;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -27,6 +27,9 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     private String couchbaseHost;
     private String couchbaseBucket;
     private String couchbasePassword;
+    private Duration sessionIdleTime = Duration.ofSeconds(15);
+    private SessionStorageStrategy<ByteArrayDocument, HashMap<String, Object>> storageStrategy;
+
 
     public void setCouchbaseHost(String host) {
         couchbaseHost = host;
@@ -40,13 +43,23 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         couchbasePassword = password;
     }
 
+    public void setSessionIdleTime(int idleTimeInSeconds) {
+        this.sessionIdleTime = Duration.ofSeconds(idleTimeInSeconds);
+    }
+
+    protected CouchbaseBackupSessionManager withSessionStorageStrategy(
+            SessionStorageStrategy<ByteArrayDocument, HashMap<String, Object>> strategy) {
+        this.storageStrategy = strategy;
+        return this;
+    }
+
     @Override
     public void add(Session session) {
         super.add(session);
         _storeSession(session);
     }
 
-    private final static Field sessionDataField =  getAttributesField();
+    final static Field sessionDataField =  getAttributesField();
 
 
     private static Field getAttributesField() {
@@ -63,14 +76,13 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     private void _storeSession(Session session) {
         System.out.println("Store session");
         try {
-            Map<String, Object> attributes = (Map<String, Object>) sessionDataField.get(session);
+            HashMap<String, Object> attributes = new HashMap((Map<String, Object>) sessionDataField.get(session));
             attributes.put("timestamp", ZonedDateTime.now(Clock.systemUTC()));
             final String sessionId = session.getIdInternal();
             if (sessionId == null)
                 return;
-            SerializableDocument serializableDocument =
-                    SerializableDocument.create(sessionId, (Serializable)attributes, session.getMaxInactiveInterval()*60L);
-            sessionBucket.upsert(serializableDocument).toBlocking().single();
+            if (session instanceof StandardSession)
+                storageStrategy.store(sessionId, attributes).toBlocking().last();
 
         } catch (IllegalAccessException e) {
             e.printStackTrace();
@@ -105,18 +117,17 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         return session;
     }
 
-    private Session _fetchSession(String s) {
-        SerializableDocument sd = sessionBucket.get(s, SerializableDocument.class).toBlocking().last();
-        if (sd == null)
-            return null;
-        Map<String, Object> attributes = (Map<String, Object>) sd.content();
-        final StandardSession standardSession = new StandardSession(this);
-        standardSession.setId(s, false);
-
-        standardSession.setValid(true);
-        attributes.forEach(standardSession::setAttribute);
-
-        return standardSession;
+    protected Session _fetchSession(String sessionId) {
+        return storageStrategy.get(sessionId).map(
+                data -> {
+                    Session session = new StandardSession(this);
+                    session.setValid(true);
+                    session.setId(sessionId, false);
+                    System.out.println(data);
+                    data.forEach(((StandardSession) session)::setAttribute);
+                    return session;
+                }
+        ).toBlocking().last();
     }
 
     public Session[] findSessions() {
@@ -128,9 +139,9 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
     }
 
     public void remove(Session session, boolean b) {
-        String id;
+        final String id;
         if ((id=session.getIdInternal()) != null)
-            sessionBucket.remove(id);
+            sessionBucket.remove(id).toBlocking().last();
         super.remove(session, b);
     }
 
@@ -146,6 +157,7 @@ public class CouchbaseBackupSessionManager extends ManagerBase implements Lifecy
         sessionBucket = CouchbaseCluster.create(couchbaseHost)
                 .openBucket(couchbaseBucket, couchbasePassword).async();
         setState(LifecycleState.STARTING);
+        storageStrategy = Storage.kryoBasedStrategy(sessionBucket, sessionIdleTime, Map.class);
         System.out.println("Starting (internal finished)");
     }
 
