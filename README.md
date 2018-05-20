@@ -7,6 +7,6 @@ This project is actively under development. Use at your own risk.
 mvn package
 docker-compose up
 ```
-Should create a couchbase cluster runnning tomcat and a the sample web application.
+Should create a couchbase cluster runnning tomcat and the sample web application.
 
 Then you can run the integration tests (*Spec)
