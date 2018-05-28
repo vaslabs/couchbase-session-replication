@@ -24,7 +24,7 @@ public class CouchbaseBackupSessionManagerSpec extends CouchbaseServerBase {
     private Context container;
 
     @BeforeClass
-    public static void init() throws LifecycleException {
+    public static void init() {
         sessionManager = new CouchbaseBackupSessionManager();
         sessionManager.setCouchbaseBucket(bucketName);
         sessionManager.setCouchbaseHost(host);
